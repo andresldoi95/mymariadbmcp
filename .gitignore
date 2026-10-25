@@ -1,0 +1,5 @@
+# Keep local OpenCode state (which may contain credentials) out of Git,
+# while sharing the Spec Kit command definitions.
+.opencode/*
+!.opencode/commands/
+!.opencode/commands/*.md
