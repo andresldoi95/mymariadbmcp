@@ -68,10 +68,40 @@ class QueryLimits:
 
 
 @dataclass(frozen=True, slots=True)
+class WritePolicy:
+    insert_columns: Mapping[str, tuple[str, ...]] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
+    update_columns: Mapping[str, tuple[str, ...]] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
+    delete_tables: tuple[str, ...] = ()
+    max_affected_rows: int | None = None
+
+    @property
+    def enabled(self) -> bool:
+        return (
+            any(self.insert_columns.values())
+            or any(self.update_columns.values())
+            or bool(self.delete_tables)
+        )
+
+    def insert_columns_for(self, database: str, table: str) -> tuple[str, ...]:
+        return self.insert_columns.get(f"{database}.{table}", ())
+
+    def update_columns_for(self, database: str, table: str) -> tuple[str, ...]:
+        return self.update_columns.get(f"{database}.{table}", ())
+
+    def delete_allowed(self, database: str, table: str) -> bool:
+        return f"{database}.{table}" in self.delete_tables
+
+
+@dataclass(frozen=True, slots=True)
 class AppConfig:
     database: DatabaseSettings
     access: AccessPolicy
     limits: QueryLimits
+    writes: WritePolicy
 
 
 _LIMIT_CEILINGS = {
@@ -184,6 +214,52 @@ def _parse_columns(value: object) -> Mapping[str, tuple[str, ...]]:
     return MappingProxyType(parsed)
 
 
+def _qualified_table(value: object, field_name: str) -> tuple[str, str]:
+    if not isinstance(value, str) or value != value.strip() or value.count(".") != 1:
+        raise ConfigurationError(
+            f"Each {field_name} entry must use database.table notation."
+        )
+    database, table = value.split(".", 1)
+    if not database or not table:
+        raise ConfigurationError(
+            f"Each {field_name} entry must use database.table notation."
+        )
+    return database, table
+
+
+def _parse_write_columns(
+    value: object,
+    field_name: str,
+    access: AccessPolicy,
+) -> Mapping[str, tuple[str, ...]]:
+    if value is None:
+        return MappingProxyType({})
+    if not isinstance(value, dict):
+        raise ConfigurationError(f"Configuration value '{field_name}' must be a table.")
+    parsed: dict[str, tuple[str, ...]] = {}
+    for qualified_name, columns in value.items():
+        database, table = _qualified_table(qualified_name, field_name)
+        if not access.table_allowed(database, table):
+            raise ConfigurationError(
+                f"A {field_name} entry references a table outside the access policy."
+            )
+        parsed[qualified_name] = _string_list(columns, f"{field_name} entry")
+    return MappingProxyType(parsed)
+
+
+def _parse_write_tables(value: object, access: AccessPolicy) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    names = _string_list(value, "delete_tables")
+    for qualified_name in names:
+        database, table = _qualified_table(qualified_name, "delete_tables")
+        if not access.table_allowed(database, table):
+            raise ConfigurationError(
+                "A delete_tables entry references a table outside the access policy."
+            )
+    return names
+
+
 def _is_local_host(host: str) -> bool:
     normalized = host.strip().lower().strip("[]")
     if normalized == "localhost" or normalized.endswith(".localhost"):
@@ -214,6 +290,7 @@ def load_config(
     database = _mapping(raw.get("database", {}), "database")
     access = _mapping(raw.get("access", {}), "access")
     limits_raw = _mapping(raw.get("limits", {}), "limits")
+    writes_raw = _mapping(raw.get("writes", {}), "writes")
 
     host = _required_string(database, "host")
     username = _required_string(database, "username")
@@ -317,6 +394,46 @@ def load_config(
     if limits.default_page_size > limits.max_page_size:
         raise ConfigurationError("default_page_size cannot exceed max_page_size.")
 
+    access_policy = AccessPolicy(
+        allowed_databases=allowed_databases,
+        allowed_tables=allowed_tables,
+        table_allowlist_configured=table_allowlist_configured,
+        allowed_columns=allowed_columns,
+    )
+    insert_columns = _parse_write_columns(
+        writes_raw.get("insert_columns"), "insert_columns", access_policy
+    )
+    update_columns = _parse_write_columns(
+        writes_raw.get("update_columns"), "update_columns", access_policy
+    )
+    delete_tables = _parse_write_tables(writes_raw.get("delete_tables"), access_policy)
+    has_write_permissions = (
+        any(insert_columns.values())
+        or any(update_columns.values())
+        or bool(delete_tables)
+    )
+    if has_write_permissions and "max_affected_rows" not in writes_raw:
+        raise ConfigurationError(
+            "Configuration value 'max_affected_rows' is required when writes "
+            "are enabled."
+        )
+    max_affected_rows = (
+        _integer(
+            writes_raw,
+            "max_affected_rows",
+            1,
+            maximum=10_000,
+        )
+        if "max_affected_rows" in writes_raw
+        else None
+    )
+    write_policy = WritePolicy(
+        insert_columns=insert_columns,
+        update_columns=update_columns,
+        delete_tables=delete_tables,
+        max_affected_rows=max_affected_rows,
+    )
+
     return AppConfig(
         database=DatabaseSettings(
             host=host,
@@ -327,11 +444,7 @@ def load_config(
             tls_verify=tls_verify,
             ca_file=ca_file,
         ),
-        access=AccessPolicy(
-            allowed_databases=allowed_databases,
-            allowed_tables=allowed_tables,
-            table_allowlist_configured=table_allowlist_configured,
-            allowed_columns=allowed_columns,
-        ),
+        access=access_policy,
         limits=limits,
+        writes=write_policy,
     )

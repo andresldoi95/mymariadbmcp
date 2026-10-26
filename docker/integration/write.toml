@@ -1,0 +1,18 @@
+[database]
+host = "mariadb"
+port = 3306
+default_database = "mcp_test"
+username = "mcp_rw"
+tls_verify = true
+ca_file = "/etc/mysql/certs/ca.pem"
+
+[access]
+allowed_databases = ["mcp_test"]
+allowed_tables = ["mcp_test.sample_records"]
+allowed_columns = { "mcp_test.sample_records" = ["id", "label", "group_key"] }
+
+[writes]
+max_affected_rows = 2
+insert_columns = { "mcp_test.sample_records" = ["label"] }
+update_columns = { "mcp_test.sample_records" = ["label"] }
+delete_tables = ["mcp_test.sample_records"]
