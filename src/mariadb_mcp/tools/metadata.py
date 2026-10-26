@@ -5,10 +5,11 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager
-from typing import Any, TypedDict
+from typing import Any
 
 from mcp.server import MCPServer
 from mcp.types import ToolAnnotations
+from typing_extensions import TypedDict
 
 from mariadb_mcp.config import AppConfig
 from mariadb_mcp.connection import connection_scope

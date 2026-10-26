@@ -12,6 +12,7 @@ dependencies = [
   "mariadb==1.1.14",
   "mcp==2.3.0",
   "sqlglot==30.24.0",
+  "typing-extensions==4.16.0",
 ]
 
 [project.optional-dependencies]

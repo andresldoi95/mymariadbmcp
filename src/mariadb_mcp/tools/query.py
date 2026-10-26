@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal
 
 from mcp.server import MCPServer
 from mcp.types import ToolAnnotations
+from typing_extensions import TypedDict
 
 from mariadb_mcp.errors import MCPAppError, as_tool_error
 from mariadb_mcp.query_service import QueryService
