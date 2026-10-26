@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mariadb-mcp-server"
+version = "0.1.0"
+description = "Secure read-only MariaDB access through the Model Context Protocol"
+readme = "README.md"
+requires-python = ">=3.11,<3.15"
+dependencies = [
+  "mariadb==1.1.14",
+  "mcp==2.3.0",
+  "sqlglot==30.24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest==9.1.1",
+  "ruff==0.17.2",
+]
+
+[project.scripts]
+mariadb-mcp = "mariadb_mcp.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+  "integration: requires an explicitly configured MariaDB test instance",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

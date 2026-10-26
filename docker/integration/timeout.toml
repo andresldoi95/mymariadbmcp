@@ -1,0 +1,13 @@
+[database]
+host = "mariadb"
+port = 3306
+default_database = "mcp_test"
+username = "mcp_ro"
+tls_verify = true
+ca_file = "/etc/mysql/certs/ca.pem"
+
+[access]
+allowed_databases = ["mcp_test"]
+
+[limits]
+query_timeout_seconds = 1

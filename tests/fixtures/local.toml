@@ -1,0 +1,6 @@
+[database]
+host = "localhost"
+username = "mcp_ro"
+
+[access]
+allowed_databases = ["appdb"]
