@@ -3,3 +3,29 @@
 .opencode/*
 !.opencode/commands/
 !.opencode/commands/*.md
+
+# Python package, virtual environments, and tooling caches
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local connection settings and secrets
+.env
+.env.*
+!.env.example
+mcp.toml
+*.local.toml
+
+# OS/editor temporary files
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp

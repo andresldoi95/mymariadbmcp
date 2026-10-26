@@ -1,0 +1,54 @@
+services:
+  test-certs:
+    image: alpine:3.21
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["apk add --no-cache openssl >/dev/null && /bin/sh /generate-certs.sh"]
+    volumes:
+      - integration-certs:/certs
+      - ./docker/integration/generate-certs.sh:/generate-certs.sh:ro
+
+  mariadb:
+    image: mariadb:11.4
+    depends_on:
+      test-certs:
+        condition: service_completed_successfully
+    environment:
+      MARIADB_ROOT_PASSWORD: disposable-root-password
+      MARIADB_DATABASE: mcp_test
+    command:
+      - --ssl-ca=/etc/mysql/certs/ca.pem
+      - --ssl-cert=/etc/mysql/certs/server-cert.pem
+      - --ssl-key=/etc/mysql/certs/server-key.pem
+      - --require-secure-transport=ON
+    volumes:
+      - integration-data:/var/lib/mysql
+      - integration-certs:/etc/mysql/certs:ro
+      - ./docker/integration/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  integration:
+    build:
+      context: .
+      dockerfile: docker/integration/Dockerfile
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    environment:
+      MARIADB_MCP_INTEGRATION: "1"
+      MARIADB_MCP_CONFIG: /workspace/docker/integration/readonly.toml
+      MARIADB_MCP_PASSWORD: disposable-test-password
+      MARIADB_MCP_TEST_WRITE_PROBE_TABLE: mcp_test.sample_records
+      MARIADB_MCP_TEST_PRIVILEGED_CONFIG: /workspace/docker/integration/privileged.toml
+      MARIADB_MCP_TEST_TIMEOUT_CONFIG: /workspace/docker/integration/timeout.toml
+    volumes:
+      - integration-certs:/etc/mysql/certs:ro
+    command: ["python", "-m", "pytest", "-m", "integration", "-ra"]
+
+volumes:
+  integration-certs:
+  integration-data:
