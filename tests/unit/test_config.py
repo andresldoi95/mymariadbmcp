@@ -187,3 +187,136 @@ def test_table_allowlist_does_not_expand_to_other_allowed_databases(
 
     assert config.access.table_allowed("appdb", "orders") is True
     assert config.access.table_allowed("otherdb", "private") is False
+
+
+def test_write_permissions_default_to_disabled(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path / "mcp.toml",
+        """
+        [database]
+        host = "localhost"
+        username = "mcp_ro"
+        [access]
+        allowed_databases = ["appdb"]
+        """,
+    )
+
+    config = load_config(path, environ={"MARIADB_MCP_PASSWORD": "secret"})
+
+    assert config.writes.insert_columns == {}
+    assert config.writes.update_columns == {}
+    assert config.writes.delete_tables == ()
+    assert config.writes.max_affected_rows is None
+    assert config.writes.enabled is False
+
+
+def test_loads_operation_scoped_write_permissions(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path / "mcp.toml",
+        """
+        [database]
+        host = "localhost"
+        username = "mcp_rw"
+        [access]
+        allowed_databases = ["appdb"]
+        allowed_tables = ["appdb.orders"]
+        allowed_columns = { "appdb.orders" = ["id", "label"] }
+        [writes]
+        max_affected_rows = 25
+        insert_columns = { "appdb.orders" = ["label"] }
+        update_columns = { "appdb.orders" = ["label"] }
+        delete_tables = ["appdb.orders"]
+        """,
+    )
+
+    config = load_config(path, environ={"MARIADB_MCP_PASSWORD": "secret"})
+
+    assert config.writes.insert_columns["appdb.orders"] == ("label",)
+    assert config.writes.update_columns["appdb.orders"] == ("label",)
+    assert config.writes.delete_tables == ("appdb.orders",)
+    assert config.writes.max_affected_rows == 25
+    assert config.writes.enabled is True
+
+
+def test_empty_write_permissions_do_not_require_a_row_cap(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path / "mcp.toml",
+        """
+        [database]
+        host = "localhost"
+        username = "mcp_ro"
+        [access]
+        allowed_databases = ["appdb"]
+        [writes]
+        insert_columns = {}
+        update_columns = {}
+        delete_tables = []
+        """,
+    )
+
+    config = load_config(path, environ={"MARIADB_MCP_PASSWORD": "secret"})
+
+    assert config.writes.enabled is False
+    assert config.writes.max_affected_rows is None
+
+
+def test_nonempty_write_policy_requires_an_affected_row_cap(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path / "mcp.toml",
+        """
+        [database]
+        host = "localhost"
+        username = "mcp_rw"
+        [access]
+        allowed_databases = ["appdb"]
+        [writes]
+        insert_columns = { "appdb.orders" = ["label"] }
+        """,
+    )
+
+    with pytest.raises(ConfigurationError, match="max_affected_rows"):
+        load_config(path, environ={"MARIADB_MCP_PASSWORD": "secret"})
+
+
+@pytest.mark.parametrize("cap", ["0", "10001", "true"])
+def test_write_affected_row_cap_must_be_positive_and_at_most_10000(
+    tmp_path: Path, cap: str
+) -> None:
+    path = write_config(
+        tmp_path / "mcp.toml",
+        f"""
+        [database]
+        host = "localhost"
+        username = "mcp_rw"
+        [access]
+        allowed_databases = ["appdb"]
+        [writes]
+        max_affected_rows = {cap}
+        delete_tables = ["appdb.orders"]
+        """,
+    )
+
+    with pytest.raises(ConfigurationError):
+        load_config(path, environ={"MARIADB_MCP_PASSWORD": "secret"})
+
+
+def test_write_policy_cannot_expand_the_existing_table_allowlist(
+    tmp_path: Path,
+) -> None:
+    path = write_config(
+        tmp_path / "mcp.toml",
+        """
+        [database]
+        host = "localhost"
+        username = "mcp_rw"
+        [access]
+        allowed_databases = ["appdb"]
+        allowed_tables = ["appdb.orders"]
+        [writes]
+        max_affected_rows = 10
+        delete_tables = ["appdb.private"]
+        """,
+    )
+
+    with pytest.raises(ConfigurationError):
+        load_config(path, environ={"MARIADB_MCP_PASSWORD": "secret"})

@@ -42,6 +42,7 @@ services:
       MARIADB_MCP_INTEGRATION: "1"
       MARIADB_MCP_CONFIG: /workspace/docker/integration/readonly.toml
       MARIADB_MCP_PASSWORD: disposable-test-password
+      MARIADB_MCP_WRITE_CONFIG: /workspace/docker/integration/write.toml
       MARIADB_MCP_TEST_WRITE_PROBE_TABLE: mcp_test.sample_records
       MARIADB_MCP_TEST_PRIVILEGED_CONFIG: /workspace/docker/integration/privileged.toml
       MARIADB_MCP_TEST_TIMEOUT_CONFIG: /workspace/docker/integration/timeout.toml

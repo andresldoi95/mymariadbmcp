@@ -1,8 +1,10 @@
 # MariaDB MCP Server
 
-A native Python MCP server for permission-aware MariaDB discovery, read-only queries,
-execution plans, and sanitized connection diagnostics. Local MCP communication uses
-STDIO; Docker and remote HTTP are not required.
+A native Python MCP server for permission-aware MariaDB discovery, bounded read-only
+queries, execution plans, and sanitized connection diagnostics. Insert, update, and
+delete are available only with explicit operation-scoped configuration and matching
+database grants. Local MCP communication uses STDIO; Docker and remote HTTP are not
+required.
 
 ## Quick start
 
@@ -16,8 +18,11 @@ STDIO; Docker and remote HTTP are not required.
    ```
 
 3. Create a local `mcp.toml` with an explicit database allowlist and a dedicated,
-   non-root, read-only MariaDB account. Set `MARIADB_MCP_CONFIG` and
-   `MARIADB_MCP_PASSWORD` through your local environment/secret manager.
+   non-root MariaDB account. The server remains read-only unless write operations
+   are explicitly configured with matching least-privilege grants. Set
+   `MARIADB_MCP_CONFIG` and `MARIADB_MCP_PASSWORD` through your local
+   environment/secret manager. See [write setup](docs/security-and-setup.md#configure-a-dedicated-database-account)
+   before enabling changes.
 4. Configure your MCP host to launch an absolute Python path with arguments
    `-m mariadb_mcp` over STDIO.
 
@@ -33,7 +38,7 @@ in a virtual environment as above, then add this configuration to
     {
       "type": "promptString",
       "id": "mariadbMcpPassword",
-      "description": "MariaDB read-only password",
+      "description": "MariaDB account password",
       "password": true
     }
   ],

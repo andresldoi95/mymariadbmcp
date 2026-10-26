@@ -15,6 +15,8 @@ from mariadb_mcp.query_service import QueryService
 from mariadb_mcp.tools.diagnostics import DiagnosticsService, register_diagnostics_tool
 from mariadb_mcp.tools.metadata import MetadataService, register_metadata_tools
 from mariadb_mcp.tools.query import register_query_tools
+from mariadb_mcp.tools.write import register_write_tools
+from mariadb_mcp.write_service import WriteService
 
 logger = logging.getLogger("mariadb_mcp.server")
 
@@ -56,6 +58,11 @@ def create_server(
             MetadataService(config, connection_factory),
         )
         register_query_tools(server, QueryService(config, connection_factory))
+        register_write_tools(
+            server,
+            WriteService(config, connection_factory),
+            config.writes,
+        )
         diagnostics = DiagnosticsService(config, connection_factory)
     else:
         diagnostics = DiagnosticsService(None)

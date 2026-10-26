@@ -1,4 +1,6 @@
 .git/
+.dockerignore
+Dockerfile*
 .opencode/
 .venv/
 venv/
@@ -10,7 +12,9 @@ build/
 .pytest_cache/
 .ruff_cache/
 .coverage
+coverage/
 htmlcov/
+*.log*
 .env
 .env.*
 !.env.example
