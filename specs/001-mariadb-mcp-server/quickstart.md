@@ -133,5 +133,6 @@ Verified in this Linux workspace with Python 3.14.4, pytest 9.1.1, and Ruff 0.17
 | `.venv/bin/python -m ruff check src tests` | Passed. |
 | `.venv/bin/python -m ruff format --check src tests` | Passed. |
 | `bash scripts/test-integration-docker.sh` | 7 passed against MariaDB 11.4 from an isolated Python 3.12.15 runner with Connector/Python 1.1.14 and Connector/C installed. Covered TLS, safe/unsafe grants, tool registration, metadata, query rejection, EXPLAIN/diagnostics, and the MariaDB statement deadline (error 1969). |
+| GitHub Actions CI matrix | Passed native install, package imports, STDIO/offline tests on Linux, macOS, and Windows for Python 3.11–3.14. |
 
-The Docker harness verifies the Linux containerized connector/database path, not a native host install. Windows/macOS native install/STDIO checks remain unverified and are still a release gate; no platform support claim is inferred from this Docker result.
+The Docker harness verifies the live connector/database path in a Linux container. CI separately verifies native installation and STDIO/offline behavior across the OS/Python matrix; live database connections and authorized reads have not been exercised on every host OS.
